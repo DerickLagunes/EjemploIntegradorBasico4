@@ -23,9 +23,11 @@ public class SqlConnection {
 
             // Convertir URL a un path de sistema de archivos compatible
             String walletPath = new File(walletUrl.toURI()).getAbsolutePath();
+            walletPath = walletPath.replace("\\", "/");
 
             // 2. Configurar HikariCP
             HikariConfig config = new HikariConfig();
+            config.setDriverClassName("oracle.jdbc.OracleDriver");
 
             config.setJdbcUrl("jdbc:oracle:thin:@veterinaria_high?TNS_ADMIN=" + walletPath);
 
