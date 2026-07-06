@@ -40,7 +40,7 @@ public class FiltroAutenticacion extends HttpFilter {
             // SI TIENE SESIÓN:
             if (loginRequest) {
                 // Si ya está logueado e intenta ir al login, lo mandamos al index
-                response.sendRedirect(request.getContextPath() + "/index.jsp");
+                response.sendRedirect(request.getContextPath() + "/gestion-mascotas.jsp");
             } else {
                 // Si va a cualquier otra página, lo dejamos pasar
                 chain.doFilter(request, response);

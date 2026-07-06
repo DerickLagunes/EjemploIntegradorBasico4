@@ -2,109 +2,179 @@ package mx.edu.utez.integradora_poo_2026.model.dao;
 
 import mx.edu.utez.integradora_poo_2026.model.Dueno;
 import mx.edu.utez.integradora_poo_2026.model.Mascota;
-import mx.edu.utez.integradora_poo_2026.utils.DuenoCSVManager;
+import mx.edu.utez.integradora_poo_2026.utils.SQLConnector;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DuenoDao implements Dao<Dueno, Integer>{
+public class DuenoDao implements Dao<Dueno, Integer> {
+
     @Override
     public boolean create(Dueno entidad) {
-        String[] nuevosDatos = empaquetarDatos(entidad);
-        DuenoCSVManager.addToCSV(nuevosDatos);
-        return true;
+        String sql = "INSERT INTO DUENOS(nombre, apellidos, correo, contrasena, foto_perfil, codigo_recuperacion) VALUES(?, ?, ?, ?, ?, ?)";
+        try (Connection con = SQLConnector.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, entidad.getNombre());
+            ps.setString(2, entidad.getApellidos());
+            ps.setString(3, entidad.getCorreo());
+            ps.setString(4, entidad.getContrasena());
+            ps.setString(5, entidad.getFoto_perfil());
+            ps.setString(6, entidad.getCodigo_recuperacion());
+
+            int filasAfectadas = ps.executeUpdate();
+            return filasAfectadas > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     @Override
     public List<Dueno> getAll() {
         List<Dueno> listaDuenos = new ArrayList<>();
-        List<String[]> lineasCsv = DuenoCSVManager.readCSV();
-        for (String[] fila : lineasCsv) {
-            if (fila.length >= 7) {
-                try {
-                    if (fila[0].equalsIgnoreCase("id")) continue;
-                    listaDuenos.add(desempaquetarDatos(fila));
-                } catch (NumberFormatException e) {
-                    System.err.println("Error al parsear el ID del dueño: " + fila[0]);
-                }
+        String sql = "SELECT * FROM DUENOS";
+
+        try (Connection con = SQLConnector.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                Dueno d = new Dueno();
+                d.setId(rs.getInt("id"));
+                d.setNombre(rs.getString("nombre"));
+                d.setApellidos(rs.getString("apellidos"));
+                d.setCorreo(rs.getString("correo"));
+                d.setContrasena(rs.getString("contrasena"));
+                d.setFoto_perfil(rs.getString("foto_perfil"));
+                d.setCodigo_recuperacion(rs.getString("codigo_recuperacion"));
+
+                // Cargar mascotas del dueño usando la misma conexión activa
+                d.setMascotas(getMascotasByDuenoId(d.getId(), con));
+
+                listaDuenos.add(d);
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
         return listaDuenos;
     }
 
     @Override
     public Dueno getById(Integer id) {
-        List<String[]> lineasCsv = DuenoCSVManager.readCSV();
-        for (String[] fila : lineasCsv) {
-            if (fila.length >= 7 && fila[0].trim().equals(String.valueOf(id))) {
-                return desempaquetarDatos(fila);
+        String sql = "SELECT * FROM DUENOS WHERE id = ?";
+        try (Connection con = SQLConnector.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Dueno d = new Dueno();
+                    d.setId(rs.getInt("id"));
+                    d.setNombre(rs.getString("nombre"));
+                    d.setApellidos(rs.getString("apellidos"));
+                    d.setCorreo(rs.getString("correo"));
+                    d.setContrasena(rs.getString("contrasena"));
+                    d.setFoto_perfil(rs.getString("foto_perfil"));
+                    d.setCodigo_recuperacion(rs.getString("codigo_recuperacion"));
+
+                    // Cargar mascotas del dueño
+                    d.setMascotas(getMascotasByDuenoId(d.getId(), con));
+
+                    return d;
+                }
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
         return null;
     }
 
     @Override
     public boolean update(Dueno entidad) {
-        String[] datosActualizados = empaquetarDatos(entidad);
-        return DuenoCSVManager.updateRow(String.valueOf(entidad.getId()), datosActualizados);
+        String sql = "UPDATE DUENOS SET nombre = ?, apellidos = ?, correo = ?, contrasena = ?, foto_perfil = ?, codigo_recuperacion = ? WHERE id = ?";
+        try (Connection con = SQLConnector.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, entidad.getNombre());
+            ps.setString(2, entidad.getApellidos());
+            ps.setString(3, entidad.getCorreo());
+            ps.setString(4, entidad.getContrasena());
+            ps.setString(5, entidad.getFoto_perfil());
+            ps.setString(6, entidad.getCodigo_recuperacion());
+            ps.setInt(7, entidad.getId());
+
+            int filasAfectadas = ps.executeUpdate();
+            return filasAfectadas > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     @Override
     public boolean delete(Integer id) {
-        return DuenoCSVManager.deleteRow(String.valueOf(id));
+        String sql = "DELETE FROM DUENOS WHERE id = ?";
+        try (Connection con = SQLConnector.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, id);
+            int filasAfectadas = ps.executeUpdate();
+            return filasAfectadas > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     public boolean login(String correo, String contrasena) {
-        List<String[]> lineasCsv = DuenoCSVManager.readCSV();
-        for (String[] fila : lineasCsv) {
-            if (fila.length >= 6) {
-                String emailCsv = fila[4].trim();
-                String passCsv = fila[5].trim();
-                if (emailCsv.equalsIgnoreCase(correo.trim()) && passCsv.equals(contrasena)) {
-                    return true;
+        // Buscamos si existe un registro que coincida exactamente con ambos campos
+        String sql = "SELECT COUNT(*) FROM DUENOS WHERE correo = ? AND contrasena = ?";
+
+        try (Connection con = SQLConnector.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, correo.trim());
+            ps.setString(2, contrasena);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    // Si el conteo es mayor a 0, las credenciales son correctas
+                    return rs.getInt(1) > 0;
                 }
             }
+        } catch (SQLException e) {
+            System.err.println("Error al intentar realizar el login.");
+            e.printStackTrace();
         }
         return false;
     }
 
-    private String[] empaquetarDatos(Dueno entidad) {
-        return new String[] {
-                String.valueOf(entidad.getId()),
-                entidad.getNombre() != null ? entidad.getNombre() : "",
-                entidad.getApellidos() != null ? entidad.getApellidos() : "",
-                entidad.getMascotas() != null ? entidad.getMascotasId() : "",
-                entidad.getCorreo() != null ? entidad.getCorreo() : "",
-                entidad.getContrasena() != null ? entidad.getContrasena() : "",
-                entidad.getFoto_perfil() != null ? entidad.getFoto_perfil() : "",
-                entidad.getCodigo_recuperacion() != null ? entidad.getCodigo_recuperacion() : ""
-        };
-    }
-
-    private Dueno desempaquetarDatos(String[] fila) {
-        Dueno dueno = new Dueno();
-        dueno.setId(Integer.parseInt(fila[0]));
-        dueno.setNombre(fila[1]);
-        dueno.setApellidos(fila[2]);
-
+    // Método auxiliar interno para poblar la relación 1:N de las mascotas
+    private List<Mascota> getMascotasByDuenoId(int duenoId, Connection con) throws SQLException {
         List<Mascota> listaMascotas = new ArrayList<>();
-        if (fila.length > 3 && !fila[3].trim().isEmpty()) {
-            String[] idsMascotas = fila[3].split(",");
-            for (String idMascota : idsMascotas) {
-                try {
+        String sql = "SELECT * FROM MASCOTAS WHERE id_dueno = ?";
+
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, duenoId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
                     Mascota m = new Mascota();
-                    m.setId(Integer.parseInt(idMascota.trim()));
+                    m.setId(rs.getInt("id"));
+                    m.setNombre(rs.getString("nombre"));
+                    m.setEspecie(rs.getString("especie"));
+                    m.setEdad(rs.getInt("edad"));
+                    m.setPersonalidad(rs.getString("personalidad"));
+                    m.setFoto(rs.getString("foto"));
+                    m.setVacunada(rs.getInt("vacunada") == 1);
                     listaMascotas.add(m);
-                } catch (NumberFormatException ignored) {}
+                }
             }
         }
-        dueno.setMascotas(listaMascotas);
-
-        dueno.setCorreo(fila.length > 4 ? fila[4] : "");
-        dueno.setContrasena(fila.length > 5 ? fila[5] : "");
-        dueno.setFoto_perfil(fila.length > 6 ? fila[6] : "");
-        dueno.setCodigo_recuperacion(fila.length > 7 ? fila[7] : "");
-
-        return dueno;
+        return listaMascotas;
     }
 }

@@ -7,7 +7,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import mx.edu.utez.integradora_poo_2026.model.Mascota;
 import mx.edu.utez.integradora_poo_2026.model.dao.MascotaDao;
-import mx.edu.utez.integradora_poo_2026.utils.MascotaCSVManager;
 
 import java.io.IOException;
 import java.util.List;
@@ -22,7 +21,7 @@ public class MascotaServlet extends HttpServlet {
             throws ServletException, IOException {
         List<Mascota> lista = mascotaDao.getAll();
         request.setAttribute("listaMascotas", lista);
-        request.getRequestDispatcher("index.jsp").forward(request, response);
+        request.getRequestDispatcher("gestion-mascotas.jsp").forward(request, response);
     }
 
     @Override
@@ -30,7 +29,6 @@ public class MascotaServlet extends HttpServlet {
             throws ServletException, IOException {
         request.setCharacterEncoding("UTF-8");
         try {
-            int id = MascotaCSVManager.readCSV().size()+1;
             String nombre = request.getParameter("nombre");
             String especie = request.getParameter("especie");
             int edad = Integer.parseInt(request.getParameter("edad"));
@@ -39,7 +37,6 @@ public class MascotaServlet extends HttpServlet {
             boolean vacunada = request.getParameter("vacunada") != null;
 
             Mascota nuevaMascota = new Mascota();
-            nuevaMascota.setId(id);
             nuevaMascota.setNombre(nombre);
             nuevaMascota.setEspecie(especie);
             nuevaMascota.setEdad(edad);

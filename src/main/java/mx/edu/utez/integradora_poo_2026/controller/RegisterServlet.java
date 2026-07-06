@@ -7,8 +7,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import mx.edu.utez.integradora_poo_2026.model.Dueno;
 import mx.edu.utez.integradora_poo_2026.model.dao.DuenoDao;
+import mx.edu.utez.integradora_poo_2026.utils.EmailSender;
 
 import java.io.IOException;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,17 +47,7 @@ public class RegisterServlet extends HttpServlet {
 
         DuenoDao dao = new DuenoDao();
 
-        // Generar un nuevo ID simulando un AUTO_INCREMENT
-        int nuevoId = 1;
-        List<Dueno> listaActual = dao.getAll();
-        for (Dueno d : listaActual) {
-            if (d.getId() >= nuevoId) {
-                nuevoId = d.getId() + 1;
-            }
-        }
-
         Dueno nuevoDueno = new Dueno();
-        nuevoDueno.setId(nuevoId);
         nuevoDueno.setNombre(nombre);
         nuevoDueno.setApellidos(apellidos);
         nuevoDueno.setCorreo(email1);
@@ -66,6 +58,27 @@ public class RegisterServlet extends HttpServlet {
         boolean creado = dao.create(nuevoDueno);
 
         if (creado) {
+            String plantillaHtml = """
+            <html>
+                <body style="font-family: Arial, sans-serif; color: #333333;">
+                    <h2 style="color: #0056b3;">¡Hola, {0} {1}!</h2>
+                    <p>Gracias por registrarte en nuestra plataforma de veterinaria.</p>
+                    <p style="font-size: 12px; color: #777777;">Si no te registraste en la plataforma, puedes ignorarlo.</p>
+                </body>
+            </html>
+            """;
+
+            String cuerpoCorreo = MessageFormat.format(
+                    plantillaHtml,
+                    nuevoDueno.getNombre(),
+                    nuevoDueno.getApellidos()
+            );
+
+            EmailSender.sendMail(
+                    nuevoDueno.getCorreo(),
+                    "Bienvenido a la veterinaria",
+                    cuerpoCorreo);
+
             request.setAttribute("mensaje", "¡Cuenta creada con éxito! Ahora puedes iniciar sesión.");
             request.getRequestDispatcher("login.jsp").forward(request, response);
         } else {

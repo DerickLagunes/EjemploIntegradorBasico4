@@ -1,86 +1,122 @@
 package mx.edu.utez.integradora_poo_2026.model.dao;
 
 import mx.edu.utez.integradora_poo_2026.model.Mascota;
-import mx.edu.utez.integradora_poo_2026.utils.MascotaCSVManager;
+import mx.edu.utez.integradora_poo_2026.utils.SQLConnector;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
 public class MascotaDao implements Dao<Mascota, Integer>{
     @Override
     public boolean create(Mascota entidad) {
-        String[] datos = {
-                String.valueOf(entidad.getId()),
-                entidad.getNombre(),
-                entidad.getEspecie(),
-                String.valueOf(entidad.getEdad()),
-                entidad.getPersonalidad(),
-                entidad.getFoto(),
-                entidad.isVacunada() ? "1" : "0"
-        };
+        String sql = "INSERT INTO MASCOTAS(nombre, especie, edad, personalidad, foto, vacunada) VALUES(?, ?, ?, ?, ?, ?)";
+        try (Connection con = SQLConnector.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, entidad.getNombre());
+            ps.setString(2, entidad.getEspecie());
+            ps.setInt(3, entidad.getEdad());
+            ps.setString(4, entidad.getPersonalidad());
+            ps.setString(5, entidad.getFoto());
+            ps.setInt(6, entidad.isVacunada() ? 1 : 0);
 
-        MascotaCSVManager.addToCSV(datos);
-        return true; // Cambiado a true para indicar éxito
+            int filasAfectadas = ps.executeUpdate();
+            return filasAfectadas > 0;
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
     }
 
     @Override
     public List<Mascota> getAll() {
         List<Mascota> datos = new ArrayList<>();
-        List<String[]> lineas = MascotaCSVManager.readCSV();
-        for(String[] linea : lineas) {
-            if (linea.length < 7) continue;
+        try (Connection con = SQLConnector.getConnection();
+             PreparedStatement ps = con.prepareStatement("SELECT * FROM MASCOTAS");
+             ResultSet rs = ps.executeQuery()) {
 
-            Mascota m = new Mascota();
-            m.setId(Integer.parseInt(linea[0].trim()));
-            m.setNombre(linea[1]);
-            m.setEspecie(linea[2]);
-            m.setEdad(Integer.parseInt(linea[3].trim()));
-            m.setPersonalidad(linea[4]);
-            m.setFoto(linea[5]);
-            m.setVacunada(linea[6].trim().equals("1"));
-            datos.add(m);
+            while (rs.next()) {
+                Mascota m = new Mascota();
+                m.setId(rs.getInt("id"));
+                m.setNombre(rs.getString("nombre"));
+                m.setEspecie(rs.getString("especie"));
+                m.setEdad(rs.getInt("edad"));
+                m.setPersonalidad(rs.getString("personalidad"));
+                m.setFoto(rs.getString("foto"));
+                m.setVacunada(rs.getInt("vacunada") == 1);
+                datos.add(m);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
         return datos;
     }
 
     @Override
     public Mascota getById(Integer id) {
-        List<String[]> lineas = MascotaCSVManager.readCSV();
-        for(String[] linea : lineas) {
-            if(linea.length > 0 && linea[0].trim().equals(id.toString())) {
-                Mascota m = new Mascota();
-                m.setId(Integer.parseInt(linea[0].trim()));
-                m.setNombre(linea[1]);
-                m.setEspecie(linea[2]);
-                m.setEdad(Integer.parseInt(linea[3].trim()));
-                m.setPersonalidad(linea[4]);
-                m.setFoto(linea[5]);
-                m.setVacunada(linea[6].trim().equals("1"));
-                return m;
+        String sql = "SELECT * FROM MASCOTAS WHERE id = ?";
+        try (Connection con = SQLConnector.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Mascota m = new Mascota();
+                    m.setId(rs.getInt("id"));
+                    m.setNombre(rs.getString("nombre"));
+                    m.setEspecie(rs.getString("especie"));
+                    m.setEdad(rs.getInt("edad"));
+                    m.setPersonalidad(rs.getString("personalidad"));
+                    m.setFoto(rs.getString("foto"));
+                    m.setVacunada(rs.getInt("vacunada") == 1);
+                    return m;
+                }
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
         return null;
     }
 
     @Override
     public boolean update(Mascota entidad) {
-        String[] datosActualizados = {
-                String.valueOf(entidad.getId()),
-                entidad.getNombre(),
-                entidad.getEspecie(),
-                String.valueOf(entidad.getEdad()),
-                entidad.getPersonalidad(),
-                entidad.getFoto(),
-                entidad.isVacunada() ? "1" : "0"
-        };
+        String sql = "UPDATE MASCOTAS SET nombre = ?, especie = ?, edad = ?, personalidad = ?, foto = ?, vacunada = ? WHERE id = ?";
+        try (Connection con = SQLConnector.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
 
-        String idString = String.valueOf(entidad.getId());
-        return MascotaCSVManager.updateRow(idString, datosActualizados);
+            ps.setString(1, entidad.getNombre());
+            ps.setString(2, entidad.getEspecie());
+            ps.setInt(3, entidad.getEdad());
+            ps.setString(4, entidad.getPersonalidad());
+            ps.setString(5, entidad.getFoto());
+            ps.setInt(6, entidad.isVacunada() ? 1 : 0);
+            ps.setInt(7, entidad.getId());
+
+            int filasAfectadas = ps.executeUpdate();
+            return filasAfectadas > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     @Override
     public boolean delete(Integer id) {
-        String idString = String.valueOf(id);
-        return MascotaCSVManager.deleteRow(idString);
+        String sql = "DELETE FROM MASCOTAS WHERE id = ?";
+        try (Connection con = SQLConnector.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, id);
+
+            int filasAfectadas = ps.executeUpdate();
+            return filasAfectadas > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 }

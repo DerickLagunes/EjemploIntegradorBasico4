@@ -27,7 +27,7 @@ public class LoginServlet extends HttpServlet {
         if (esValido) {
             HttpSession session = request.getSession(true); // true = crea una sesión si no existe
             session.setAttribute("usuario", email);
-            response.sendRedirect("index.jsp");
+            response.sendRedirect("gestion-mascotas.jsp");
         } else {
             request.setAttribute("error", "Usuario o contraseña incorrectos. Inténtalo de nuevo.");
             request.getRequestDispatcher("login.jsp").forward(request, response);
