@@ -36,11 +36,24 @@ public class SQLConnector {
             if (dbUser == null || dbPass == null || dbName == null) {
                 System.err.println("Advertencia: Faltan variables de entorno de la BD. Buscando en credentials.properties...");
                 Properties creds = new Properties();
+
                 try (InputStream is = classLoader.getResourceAsStream("credentials.properties")) {
                     if (is == null) {
                         throw new RuntimeException("No se encontró el archivo credentials.properties ni las variables de entorno de la base de datos.");
                     }
-                    creds.load(is);
+
+                    // 1. Convertimos el InputStream en bytes para poder analizarlo sin consumirlo
+                    byte[] fileBytes = is.readAllBytes();
+
+                    // 2. Detectamos dinámicamente la codificación
+                    java.nio.charset.Charset detectedCharset = detectCharset(fileBytes);
+                    System.out.println("Codificación detectada para credentials.properties: " + detectedCharset.name());
+
+                    // 3. Cargamos las propiedades usando el encoding correcto
+                    try (java.io.ByteArrayInputStream bais = new java.io.ByteArrayInputStream(fileBytes);
+                         java.io.InputStreamReader reader = new java.io.InputStreamReader(bais, detectedCharset)) {
+                        creds.load(reader);
+                    }
 
                     // Si ya se habían leído del entorno, conservamos ese valor; si no, del archivo
                     if (dbUser == null) dbUser = creds.getProperty("db.user");
@@ -90,6 +103,30 @@ public class SQLConnector {
     public static void closeConnection() {
         if(dataSource != null && !dataSource.isClosed()) {
             dataSource.close();
+        }
+    }
+
+    /**
+     * Detecta si un arreglo de bytes pertenece a un archivo UTF-8 o ISO-8859-1.
+     */
+    private static java.nio.charset.Charset detectCharset(byte[] bytes) {
+        // 1. Revisar si tiene BOM de UTF-8 (tres bytes específicos al inicio: EF BB BF)
+        if (bytes.length >= 3 && (bytes[0] & 0xFF) == 0xEF && (bytes[1] & 0xFF) == 0xBB && (bytes[2] & 0xFF) == 0xBF) {
+            return java.nio.charset.StandardCharsets.UTF_8;
+        }
+
+        // 2. Intentar decodificar como UTF-8 estricto.
+        // Si contiene caracteres ISO-8859-1 puros (como la 'ñ' en un solo byte), fallará.
+        java.nio.charset.CharsetDecoder decoder = java.nio.charset.StandardCharsets.UTF_8.newDecoder();
+        decoder.onMalformedInput(java.nio.charset.CodingErrorAction.REPORT);
+        decoder.onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT);
+
+        try {
+            decoder.decode(java.nio.ByteBuffer.wrap(bytes));
+            return java.nio.charset.StandardCharsets.UTF_8; // Si no falló, es UTF-8 válido (o texto plano ASCII)
+        } catch (java.nio.charset.CharacterCodingException e) {
+            // Si lanza excepción, significa que encontró bytes inválidos para UTF-8 (como tu 'ñ' en ISO)
+            return java.nio.charset.StandardCharsets.ISO_8859_1;
         }
     }
 }

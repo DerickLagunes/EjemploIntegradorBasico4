@@ -10,12 +10,21 @@ import java.util.Properties;
 public class EmailSender {
 
     public static void sendMail(String to, String subject, String body) {
-        // 1. Configuración del servidor SMTP
+        // 1. Configuración del servidor SMTP (Actualizado para TLS moderno)
         Properties props = new Properties();
         props.put("mail.smtp.auth", "true");
         props.put("mail.smtp.starttls.enable", "true");
+        props.put("mail.smtp.starttls.required", "true"); // Requerir TLS seguro obligatoriamente
         props.put("mail.smtp.host", "smtp.gmail.com");
         props.put("mail.smtp.port", "587");
+
+        // Solución al problema de TLS Handshake en Java moderno
+        props.put("mail.smtp.ssl.protocols", "TLSv1.2 TLSv1.3");
+        props.put("mail.smtp.ssl.trust", "smtp.gmail.com");
+
+        // Timeouts para evitar congelamientos eternos si falla la red
+        props.put("mail.smtp.connectiontimeout", "10000");
+        props.put("mail.smtp.timeout", "10000");
 
         // Variables temporales para la lógica
         String userTemp = System.getenv("SMTP_USER");
@@ -28,7 +37,12 @@ public class EmailSender {
                 if (is == null) {
                     throw new RuntimeException("No se encontró el archivo credentials.properties ni las variables de entorno.");
                 }
-                creds.load(is);
+
+                // Solución para respetar la codificación ISO-8859-1 del archivo
+                try (java.io.InputStreamReader reader = new java.io.InputStreamReader(is, java.nio.charset.StandardCharsets.ISO_8859_1)) {
+                    creds.load(reader);
+                }
+
                 userTemp = creds.getProperty("smtp.user");
                 passTemp = creds.getProperty("smtp.pass");
             } catch (Exception e) {
@@ -58,6 +72,7 @@ public class EmailSender {
 
             // 5. Enviar
             Transport.send(message);
+            System.out.println("¡Correo enviado con éxito a: " + to + "!");
 
         } catch (MessagingException e) {
             e.printStackTrace();

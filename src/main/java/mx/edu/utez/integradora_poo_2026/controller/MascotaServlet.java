@@ -39,7 +39,7 @@ public class MascotaServlet extends HttpServlet {
 
         String action = request.getParameter("action");
 
-        try {
+
             if ("delete".equals(action)) {
                 int id = Integer.parseInt(request.getParameter("id"));
                 mascotaDao.delete(id);
@@ -84,10 +84,7 @@ public class MascotaServlet extends HttpServlet {
                     mascotaDao.update(mascota);
                 }
             }
-        } catch (Exception e) {
-            System.err.println("Error procesando la solicitud: " + e.getMessage());
-            e.printStackTrace();
-        }
+
 
         // Patrón PRG: Redirigir al GET evita que al recargar la página se repita la operación
         response.sendRedirect("mascota");
